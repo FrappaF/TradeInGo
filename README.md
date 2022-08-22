@@ -6,6 +6,14 @@ In every price chart you can find what they call resistances and supports, espec
 
 ![BTCUSDT_2022-08-22_11-26-24](https://user-images.githubusercontent.com/34452508/185888008-67e893ea-5da1-46a4-a4ee-97d4681c5253.png)
 
+## Take profit and stop loss
+In order to lower the risk, before opening a position, the bot set a *takeprofit* and a *stoploss* 
+
+- The *TAKEPROFIT* is set to the next key level the price could go.
+
+- The *STOPLOSS* is set to the current level the price gets over/under
+
+In this way we can limit the losses and maximize the profit!
 
 ## So how to determine those areas and key levels?
 We can observe the shadows of a group of candles and see if they shares a certain price area.
