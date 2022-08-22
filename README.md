@@ -23,7 +23,7 @@ We can observe the shadows of a group of candles and see if they shares a certai
 Another way to find interesting key levels is the Fibonacci retracement. 
 (See https://www.investopedia.com/ask/answers/05/fibonacciretracement.asp#:~:text=Fibonacci%20retracement%20levels%20are%20horizontal,trend%20is%20likely%20to%20continue.)
 
-## When we have all of this stuff we are ready
+## How the bot works
 The bot can be launched using the *go run . [mode]* command. 
 
 The mode can be: 
