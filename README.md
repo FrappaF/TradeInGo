@@ -39,7 +39,7 @@ The mode can be:
   - *test* to run a backtest and see the performance.
   
 In the repo you can find the *log.txt* file that contains the *test* output of ~ 6 months of run.
-You can notice (searching for POSITION CLOSED) that the bot made few trades and only 1 of them resulted in a loss.
+You can notice (searching for POSITION CLOSED) that the bot made few trades with a gain of ~110%.
 
 
 ## TODOS
