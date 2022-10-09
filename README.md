@@ -20,7 +20,7 @@ We can observe the shadows of a group of candles and see if they shares a certai
 
 ![BTCUSDT_2022-08-22_11-33-36](https://user-images.githubusercontent.com/34452508/185889574-49e675f6-e8d9-4f2b-8122-1c6d83437fb7.png)
 
-Another good indicator are the clusters. A cluster is formed when there are 2 candles going in the same direction and one in between them going in the opposite direction with a smaller body, as you can see on this screenshot
+Another good indicator are the **clusters**. A cluster is formed when there are 2 candles going in the same direction and one in between them going in the opposite direction with a smaller body, as you can see on this screenshot
 
 
 ![BTCUSD_2022-10-09_16-15-07](https://user-images.githubusercontent.com/34452508/194761751-2cc0bb3c-2aeb-453c-85a4-ace27d077dc8.png)
