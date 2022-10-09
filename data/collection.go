@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"math"
 	"sort"
 
@@ -19,24 +20,25 @@ const (
 	//
 	BufferLength int     = 3      //Used in getResistancesAndSupport
 	minRange     float32 = 50.0   //Minimum range for an area
-	maxRange             = 2500.0 //Maxim range for an area
+	maxRange             = 1500.0 //Maxim range for an area
 )
 
-//Contains a slice of candles
-//And useful data:
-//Top, Bottom [Candle] represents the maximum top candle and the minimum bottom candle on the whole Data
-//InterestAreas [[]Candle] represents the interesting areas in the history of the price.
-//The Candles represents the areas and are build like this:
-//						   	The High and Open are the highest side of the area
-//						   	The Low and Close are the lowest side of the area
+// Contains a slice of candles
+// And useful data:
+// Top, Bottom [Candle] represents the maximum top candle and the minimum bottom candle on the whole Data
+// InterestAreas [[]Candle] represents the interesting areas in the history of the price.
+// The Candles represents the areas and are build like this:
+//
+//	The High and Open are the highest side of the area
+//	The Low and Close are the lowest side of the area
 type Collection struct {
 	History, InterestAreas []Candle
 	Top, Bottom            Candle
 	KeyLevels              []float32
 }
 
-//Get the response for daily resolution
-//Then call FetchDailyData passing the response
+// Get the response for daily resolution
+// Then call FetchDailyData passing the response
 func (collection *Collection) FetchData(from, to int64) error {
 
 	resDaily, err := api.GetResponse("BINANCE:BTCUSDT", "D", from, to)
@@ -48,9 +50,9 @@ func (collection *Collection) FetchData(from, to int64) error {
 	return nil
 }
 
-//Fetch the History of the collection
-//It takes the responses [finnhub.CryptoCandles]
-//Set the History properly and find the Top and Bottom
+// Fetch the History of the collection
+// It takes the responses [finnhub.CryptoCandles]
+// Set the History properly and find the Top and Bottom
 func (collection *Collection) FetchDailyData(res finnhub.CryptoCandles) {
 	top := Candle{}
 	bottom := Candle{}
@@ -84,7 +86,7 @@ func (collection *Collection) FetchDailyData(res finnhub.CryptoCandles) {
 	collection.Top = top
 }
 
-//Fibonacci retracement using levels 23.6%, 38.2%, 61.8%, and 78.6% and adding 50% level
+// Fibonacci retracement using levels 23.6%, 38.2%, 61.8%, and 78.6% and adding 50% level
 func (collection *Collection) getFibonacciRetracement() []float32 {
 	fibRetracement := make([]float32, 5)
 
@@ -101,7 +103,7 @@ func (collection *Collection) getFibonacciRetracement() []float32 {
 
 func (collection *Collection) FindInterestingAreasAndKeyLevels() {
 
-	resSup := collection.getResistancesAndSupport()
+	resSup := collection.getResistancesSupportAndClusters()
 
 	for i := 1; i < len(resSup)-1; {
 
@@ -184,10 +186,78 @@ func (collection *Collection) FindInterestingAreasAndKeyLevels() {
 
 }
 
-//Find resistance and supports
-//If it finds [BurreLength] candles that shares a price area in their TOP shadows -> resistance
-//If it finds [BurreLength] candles that shares a price area in their BOTTOM shadows -> support
-func (collection *Collection) getResistancesAndSupport() []Candle {
+// Find if exists a resistance or a support in the given buffer
+func (collection *Collection) findResistanceAndSupport(buffer [BufferLength]Candle) (Candle, error) {
+
+	minTopShadow := minTopShadow(buffer)
+	maxBody := maxBody(buffer)
+
+	minBottomShadow := minBottomShadow(buffer)
+	minBody := minBody(buffer)
+
+	if minTopShadow > maxBody {
+		return Candle{
+			Open:      minTopShadow,
+			Close:     maxBody,
+			High:      minTopShadow,
+			Low:       maxBody,
+			Volume:    0,
+			Timestamp: buffer[BufferLength-1].Timestamp,
+		}, nil
+	}
+
+	if minBottomShadow < minBody {
+		return Candle{
+			Open:      minBody,
+			Close:     minBottomShadow,
+			High:      minBody,
+			Low:       minBottomShadow,
+			Volume:    0,
+			Timestamp: buffer[BufferLength-1].Timestamp,
+		}, nil
+	}
+
+	return Candle{}, fmt.Errorf("cannot find any resistance or support for this buffer")
+
+}
+
+// Find if exists a cluster in the given buffer
+func (collection *Collection) findClusters(buffer [BufferLength]Candle) (Candle, error) {
+
+	//Body of the candle with sign
+	//(positive if is a green candle, negative otherwise)
+	var signedBodies [BufferLength]float32
+
+	//Absolute body of the candles
+	var absoluteBodies [BufferLength]float32
+
+	//Calculating the bodies
+	for index, candle := range buffer {
+		signedBodies[index] = candle.Close - candle.Open
+		absoluteBodies[index] = float32(math.Abs(float64(candle.Close - candle.Open)))
+	}
+
+	//Check if there is a cluster in the buffer
+	//We have a cluster if there are two candles with the same direction
+	//and another candle between them with the opposite direction and small body
+	for i := 1; i < BufferLength-1; i++ {
+		if (signedBodies[i-1]*signedBodies[i+1] > 0) &&
+			(signedBodies[i-1]*signedBodies[i] < 0) &&
+			(absoluteBodies[i] < absoluteBodies[i-1] &&
+				absoluteBodies[i] < absoluteBodies[i+1]) {
+			return buffer[i], nil
+		}
+	}
+
+	return Candle{}, fmt.Errorf("cannot find a cluster for this buffer")
+
+}
+
+// Find resistance, supports and clusters
+// If it finds [BurreLength] candles that shares a price area in their TOP shadows -> resistance
+// If it finds [BurreLength] candles that shares a price area in their BOTTOM shadows -> support
+// If it finds [BufferLength] candles with a setup for being a cluster -> cluster
+func (collection *Collection) getResistancesSupportAndClusters() []Candle {
 
 	indexs := make([]int, 2)
 	indexs[0] = BufferLength
@@ -201,18 +271,10 @@ func (collection *Collection) getResistancesAndSupport() []Candle {
 			buffer[index] = candle
 		} else {
 
-			minTopShadow := minTopShadow(buffer)
-			maxBody := maxBody(buffer)
-
-			minBottomShadow := minBottomShadow(buffer)
-			minBody := minBody(buffer)
-
-			if minTopShadow > maxBody {
-				resSup = append(resSup, Candle{Open: minTopShadow, Close: maxBody, High: minTopShadow, Low: maxBody, Volume: 0, Timestamp: candle.Timestamp})
-			}
-
-			if minBottomShadow < minBody {
-				resSup = append(resSup, Candle{Open: minBody, Close: minBottomShadow, High: minBody, Low: minBottomShadow, Volume: 0, Timestamp: candle.Timestamp})
+			if candleCluster, err := collection.findClusters(buffer); err == nil {
+				resSup = append(resSup, candleCluster)
+			} else if candleResSup, err := collection.findResistanceAndSupport(buffer); err == nil {
+				resSup = append(resSup, candleResSup)
 			}
 
 			//Adding the new candle in the buffer and eliminate the first (Simulating a FILO)
@@ -223,14 +285,13 @@ func (collection *Collection) getResistancesAndSupport() []Candle {
 					buffer[i-1] = buffer[i]
 				}
 			}
-
 		}
 	}
 
 	return resSup
 }
 
-//Find the minimum top shadow of a given buffer of candles
+// Find the minimum top shadow of a given buffer of candles
 func minTopShadow(buffer [BufferLength]Candle) float32 {
 
 	var min float32
@@ -244,7 +305,7 @@ func minTopShadow(buffer [BufferLength]Candle) float32 {
 	return min
 }
 
-//Find the minimum bottom shadow of a given buffer of candles
+// Find the minimum bottom shadow of a given buffer of candles
 func minBottomShadow(buffer [BufferLength]Candle) float32 {
 
 	var min float32
@@ -258,7 +319,7 @@ func minBottomShadow(buffer [BufferLength]Candle) float32 {
 	return min
 }
 
-//Find the maximum high body of a given buffer of candles
+// Find the maximum high body of a given buffer of candles
 func maxBody(buffer [BufferLength]Candle) (res float32) {
 	var max float32
 
@@ -277,7 +338,7 @@ func maxBody(buffer [BufferLength]Candle) (res float32) {
 	return max
 }
 
-//Find the minimum high body of a given buffer of candles
+// Find the minimum high body of a given buffer of candles
 func minBody(buffer [BufferLength]Candle) (res float32) {
 	var min float32
 	min = 0xFFFFFF
