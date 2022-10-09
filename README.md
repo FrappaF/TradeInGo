@@ -42,6 +42,6 @@ In the repo you can find the *log.txt* file that contains the *test* output of ~
 You can notice (searching for POSITION CLOSED) that the bot made few trades and only 1 of them resulted in a loss.
 
 
-##TODOS
+## TODOS
 - Improve efficiency of the algorithm.
 - Connect the bot with a telegram bot to receive live updates and signals.
