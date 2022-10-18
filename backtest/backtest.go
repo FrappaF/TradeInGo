@@ -26,7 +26,7 @@ func RunBacktest(from, to int64, resolution string) {
 		t := res.GetT()[i]
 
 		candle := data.Candle{Open: o, Close: c, High: h, Low: l, Volume: v, Timestamp: t}
-		btcBot.Predict(candle)
+		btcBot.Predict(candle, time.Unix(t, 0))
 
 	}
 }
